@@ -214,7 +214,7 @@
   "Register Rustic's Clippy checker."
   (add-to-list 'flycheck-checkers 'rustic-clippy))
 
-(defvar chex-global--managed-settings
+(defcustom chex-global-managed-settings
   `((ispell-list-command . "list")
     (ispell-program-name . "aspell")
     (ispell-extra-args . ("--sug-mode=ultra" "--run-together"))
@@ -243,13 +243,15 @@
     (flycheck-eglot-exclusive . nil)
     (flycheck-eglot-enable-diagnostic-tags . nil)
     (flycheck-keymap-prefix . ,(kbd "C-c f")))
-  "Default values installed while `chex-global-mode' is active.")
+  "Default values installed while `chex-global-mode' is active."
+  :type '(alist :key-type symbol :value-type sexp)
+  :group 'chex)
 
 (defvar chex-global--saved-settings nil
   "Previous default bindings saved by `chex-global-mode'.")
 
 (defun chex-global--apply-settings ()
-  "Save and apply the defaults in `chex-global--managed-settings'."
+  "Save and apply the defaults in `chex-global-managed-settings'."
   (unless chex-global--saved-settings
     (seq-do (lambda (pair)
               (let ((symbol (car pair)))
@@ -258,7 +260,7 @@
                                      (cons nil nil)))
                       chex-global--saved-settings)
                 (set-default symbol (cdr pair))))
-            chex-global--managed-settings)))
+            chex-global-managed-settings)))
 
 (defun chex-global--restore-settings ()
   "Restore default bindings saved when Chex was enabled."

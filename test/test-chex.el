@@ -101,5 +101,42 @@
           (should-not (memq #'chex-flycheck-eldoc eldoc-documentation-functions)))
       (chex-global-mode (if was-enabled 1 -1)))))
 
+(ert-deftest chex-ispell-cache-avoids-reloads-on-each-check ()
+  "Restore the cache on demand, then reuse initialized Ispell state."
+  (let ((chex-ispell-cache-file (make-temp-file "chex-ispell-"))
+        (ispell-program-name "aspell")
+        (ispell-last-program-name nil)
+        (load-count 0)
+        (calls 0))
+    (unwind-protect
+        (cl-letf (((symbol-function 'load)
+                   (lambda (&rest _args)
+                     (setq load-count (1+ load-count))
+                     (setq ispell-last-program-name "aspell") t)))
+          (dotimes (_ 10)
+            (chex--ispell-cache-params
+             (lambda () (setq calls (1+ calls)))))
+          (should (= 1 load-count))
+          (should (= 10 calls)))
+      (delete-file chex-ispell-cache-file))))
+
+(ert-deftest chex-ispell-cache-preserves-program-switch ()
+  "Switching programs calls Ispell without restoring stale cached state."
+  (let ((chex-ispell-cache-file (make-temp-file "chex-ispell-"))
+        (chex--ispell-cache-vars '(ispell-last-program-name))
+        (ispell-program-name "new-program")
+        (ispell-last-program-name "old-program")
+        (loads 0))
+    (unwind-protect
+        (cl-letf (((symbol-function 'load)
+                   (lambda (&rest _args) (setq loads (1+ loads)))))
+          (chex--ispell-cache-params
+           (lambda ()
+             (should (equal "old-program" ispell-last-program-name))
+             (setq ispell-last-program-name ispell-program-name)))
+          (should (= 0 loads))
+          (should (equal "new-program" ispell-last-program-name)))
+      (delete-file chex-ispell-cache-file))))
+
 (provide 'test-chex)
 ;;; test-chex.el ends here

@@ -7,6 +7,26 @@
 (require 'ert)
 (require 'chex)
 
+(defvar features)
+(defconst chex-test--source
+  (expand-file-name "../chex.el" (file-name-directory (or load-file-name buffer-file-name))))
+
+(ert-deftest chex-global-mode-does-not-eagerly-require-checkers ()
+  "Loading and enabling Chex does not require Flycheck or Flyspell."
+  (let ((features (seq-difference features '(flycheck flyspell flycheck-aspell)))
+        (original-require (symbol-function 'require))
+        (chex-global-mode nil))
+    (cl-letf (((symbol-function 'require)
+               (lambda (feature &rest args)
+                 (when (memq feature '(flycheck flyspell flycheck-aspell))
+                   (ert-fail "Chex loaded a checking library eagerly"))
+                 (apply original-require feature args))))
+      (unwind-protect
+          (progn
+            (load chex-test--source nil t)
+            (chex-global-mode 1))
+        (chex-global-mode -1)))))
+
 (ert-deftest chex-mode-hooks-and-keys ()
   "Enabling and disabling Chex controls hooks and global bindings."
   (let ((was-enabled chex-global-mode))
@@ -22,13 +42,14 @@
           (should-not (advice-member-p #'chex--ispell-cache-params 'ispell-set-spellchecker-params)))
       (chex-global-mode (if was-enabled 1 -1)))))
 
-(ert-deftest chex-checkers-available-after-flycheck-load ()
-  "Aspell checkers and the Flycheck command keys are registered."
+(ert-deftest chex-checkers-available-after-flycheck-activation ()
+  "Aspell checkers and command keys are registered when Flycheck starts."
   (let ((was-enabled chex-global-mode))
     (unwind-protect
         (progn
           (chex-global-mode 1)
           (require 'flycheck)
+          (with-temp-buffer (flycheck-mode 1))
           (should (memq 'org-aspell-dynamic flycheck-checkers))
           (should (memq 'rst-aspell-dynamic flycheck-checkers))
           (should (flycheck-valid-checker-p 'org-aspell-dynamic))

@@ -18,11 +18,18 @@
 (require 'seq)
 (require 'subr-x)
 
-(require 'flycheck)
-(require 'flyspell)
+(autoload 'chex--initialize-flycheck "chex-flycheck")
+(autoload 'flycheck-mode "flycheck" nil t)
+(autoload 'flyspell-mode "flyspell" nil t)
+(autoload 'flyspell-prog-mode "flyspell" nil t)
 
-(require 'flycheck-aspell)
-
+(declare-function flycheck-overlay-errors-at "flycheck")
+(declare-function flycheck-error-level "flycheck")
+(declare-function flycheck-error-message "flycheck")
+(declare-function flycheck-error-id "flycheck")
+(declare-function flycheck-error-group "flycheck")
+(declare-function flycheck-add-next-checker "flycheck")
+(declare-function flycheck-remove-next-checker "flycheck")
 (declare-function flyspell-correct-at-point "flyspell-correct")
 (declare-function consult-flyspell "consult-flyspell")
 (declare-function sprite-state-path "sprite")
@@ -204,9 +211,6 @@
   "M-g f" #'flycheck-mode
   "C-c f f" #'flycheck-mode)
 
-(flycheck-aspell-define-checker "org" "Org" ("--add-filter" "url") (org-mode))
-(flycheck-aspell-define-checker "rst" "reStructuredText" ("--add-filter" "url") (rst-mode))
-
 (defun chex--eglot-setup ()
   "Add the Eglot checker and chain gofmt after it."
   (add-to-list 'flycheck-checkers 'eglot-check)
@@ -280,12 +284,9 @@
   (if chex-global-mode
       (progn
         (chex-global--apply-settings)
-        (define-key flycheck-mode-map flycheck-keymap-prefix flycheck-command-map)
-        (keymap-set flycheck-command-map ";" #'consult-flycheck)
-        (keymap-set flycheck-command-map "m" #'consult-flycheck)
-        (seq-do (lambda (checker)
-		  (add-to-list 'flycheck-checkers checker))
-                chex-aspell-checkers)
+        (if (featurep 'flycheck)
+            (chex--initialize-flycheck)
+          (add-hook 'flycheck-mode-hook #'chex--initialize-flycheck))
         (add-hook 'prog-mode-hook #'chex--flyspell-prog)
         (add-hook 'text-mode-hook #'chex--flyspell-text)
         (dolist (hook chex-extra-spell-hooks)
@@ -303,6 +304,7 @@
       (remove-hook hook #'chex--flyspell-text))
     (remove-hook 'go-ts-mode-hook #'chex--go-setup)
     (remove-hook 'flycheck-mode-hook #'chex--flycheck-eldoc-setup)
+    (remove-hook 'flycheck-mode-hook #'chex--initialize-flycheck)
     (remove-hook 'flycheck-eglot-mode-hook #'chex--eglot-setup)
     (remove-hook 'rustic-mode-hook #'chex--rustic-setup)
     (remove-hook 'org-mode-hook #'flycheck-vale-setup)

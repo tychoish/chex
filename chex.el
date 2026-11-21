@@ -271,9 +271,14 @@
 (defun chex-global--restore-settings ()
   "Restore default bindings saved when Chex was enabled."
   (seq-do (lambda (entry)
-            (if (cadr entry)
-                (set-default (car entry) (cddr entry))
-              (makunbound (car entry))))
+            (let ((sym (car entry)))
+              (cond
+               ((cadr entry)
+                (set-default sym (cddr entry)))
+               ((custom-variable-p sym)
+                (custom-reevaluate-setting sym))
+               (t
+                (makunbound sym)))))
           chex-global--saved-settings)
   (setq chex-global--saved-settings nil))
 

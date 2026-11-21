@@ -88,6 +88,7 @@
 
 (ert-deftest chex-managed-defaults-restore-and-preserve-local-values ()
   "Mode toggles restore defaults without overwriting buffer-local values."
+  (require 'flycheck)
   (let ((was-enabled chex-global-mode))
     (unwind-protect
         (progn
